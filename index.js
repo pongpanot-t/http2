@@ -5,33 +5,50 @@ const app = express()
 const fs = require('fs')
 
 app.use(logger('dev'))
+app.use(express.static('public'))
 
-app.get('/', function (req, res) {
-  res.send(`hello, http2! go to /pushy`)
-})
+const importList = require('./import');
+const importHTML = fs.readFileSync('./public/import.html');
+
+const pushy = (req,res,list)=>{
+
+    list.map((row)=>{
+        var contentType;
+        switch (row.type) {
+            case "html":
+                contentType = "text/html";
+                break;
+            case "js":
+                contentType = "application/javascript";
+        }
+        
+        const importFile = fs.readFileSync('./public/'+row.path);
+
+        res.push(row.path, 
+            {
+                status: 200,
+                method: 'GET',
+                request: {
+                    accept: '*/*'
+                },
+                response: {
+                    'content-type':contentType
+                }
+            }
+            ,
+            function(err, stream){
+                if (err) return;
+                stream.end(importFile);
+            }
+        )
+    })
+
+}
 
 app.get('/pushy', (req, res) => {
 
-
-    res.push('/main.js', 
-        {
-            status: 200, // optional
-            method: 'GET', // optional
-            request: {
-            accept: '*/*'
-            },
-            response: {
-            'content-type': 'application/javascript'
-            }
-        }
-        ,
-        function(err, stream){
-            if (err) return;
-            stream.end('alert("hello from push stream!");');
-        }
-    )
-    
-    res.end('<script src="/main.js"></script>')
+    pushy(req,res,importList);
+    res.end(importHTML)
     
 })
 
